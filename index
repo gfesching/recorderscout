@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="zh-Hant">
+ <head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260714-05-1435aa9"}');</script><script src="/_sdk/f432b76fb310b513.telemetry_sdk.js" integrity="sha512-9FJQ55EKmmqhyyik8BhrMVfm0+iYYfb8uOlRsjtkxJMEI97qOVEI4PnHohDjQAtvAep0IOEpdQ64eki0sz62ug=="></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recorder Pitch Detector</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #eaf6f2;
+      --muted: #8ea6a1;
+      --panel: rgba(10, 28, 31, 0.72);
+      --line: rgba(175, 255, 226, 0.16);
+      --mint: #64f3b8;
+      --aqua: #57d9ff;
+      --amber: #ffc85d;
+      --coral: #ff6d72;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      font-family: "DM Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 16%, rgba(87, 217, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 84% 6%, rgba(100, 243, 184, 0.14), transparent 27%),
+        linear-gradient(145deg, #061416 0%, #081f22 44%, #051316 100%);
+    }
+
+    .app-shell {
+      width: 100%;
+      min-height: calc(100 * min(var(--vh, 1vh), 1vh));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app-shell::before,
+    .app-shell::after {
+      content: "";
+      position: absolute;
+      pointer-events: none;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.55;
+    }
+
+    .app-shell::before {
+      width: 15rem;
+      height: 15rem;
+      right: -5rem;
+      bottom: 10%;
+      background: rgba(87, 217, 255, 0.13);
+    }
+
+    .app-shell::after {
+      width: 13rem;
+      height: 13rem;
+      left: -5rem;
+      top: 42%;
+      background: rgba(100, 243, 184, 0.1);
+    }
+
+    .main-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .glass-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .eyebrow {
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-family: "Space Mono", monospace;
+      font-size: 0.72rem;
+    }
+
+    .status-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 999px;
+      background: #6e8580;
+      box-shadow: 0 0 0 rgba(100, 243, 184, 0);
+      transition: 0.25s ease;
+    }
+
+    .status-dot.is-live {
+      background: var(--mint);
+      box-shadow: 0 0 15px rgba(100, 243, 184, 0.85);
+      animation: pulse 1.5s infinite;
+    }
+
+    .gauge-track {
+      position: relative;
+      width: min(100%, 440px);
+      height: 220px;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    .gauge-arc {
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      left: 50%;
+      bottom: -198px;
+      transform: translateX(-50%);
+      border: 22px solid rgba(255,255,255,0.06);
+      border-top-color: var(--coral);
+      border-right-color: var(--amber);
+      border-bottom-color: transparent;
+      border-left-color: var(--amber);
+      border-radius: 50%;
+      transform-origin: center;
+    }
+
+    .gauge-center {
+      position: absolute;
+      left: 50%;
+      bottom: 15px;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 7px solid #d7fff0;
+      background: #0c2727;
+      z-index: 4;
+      box-shadow: 0 0 24px rgba(100, 243, 184, 0.4);
+    }
+
+    .needle {
+      position: absolute;
+      left: calc(50% - 2px);
+      bottom: 30px;
+      width: 4px;
+      height: 143px;
+      border-radius: 999px;
+      background: linear-gradient(to top, #d9fff3, var(--mint));
+      transform-origin: bottom center;
+      transform: rotate(-55deg);
+      z-index: 3;
+      box-shadow: 0 0 18px rgba(100, 243, 184, 0.85);
+      transition: transform 0.12s linear, background 0.25s ease;
+    }
+
+    .needle::before {
+      content: "";
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #e8fff8;
+      box-shadow: 0 0 14px rgba(255,255,255,0.85);
+    }
+
+    .metric-value {
+      font-family: "Space Mono", monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wave-canvas {
+      width: 100%;
+      height: 150px;
+      display: block;
+      border-radius: 1rem;
+      background:
+        linear-gradient(rgba(100,243,184,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100,243,184,0.05) 1px, transparent 1px),
+        rgba(3, 19, 21, 0.7);
+      background-size: 24px 24px;
+    }
+
+    .note-chip {
+      border: 1px solid rgba(175,255,226,0.14);
+      background: rgba(255,255,255,0.04);
+      color: #bbcec8;
+      transition: 0.2s ease;
+    }
+
+    .note-chip:hover,
+    .note-chip:focus-visible {
+      border-color: rgba(100,243,184,0.75);
+      color: #effff8;
+      outline: none;
+    }
+
+    .note-chip.is-selected {
+      background: rgba(100,243,184,0.16);
+      color: var(--mint);
+      border-color: rgba(100,243,184,0.75);
+      box-shadow: inset 0 0 18px rgba(100,243,184,0.08);
+    }
+
+    .progress-ring {
+      stroke-dasharray: 251.2;
+      stroke-dashoffset: 251.2;
+      transition: stroke-dashoffset 0.08s linear;
+    }
+
+    .primary-action {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .primary-action:hover { transform: translateY(-2px); }
+    .primary-action:focus-visible,
+    button:focus-visible {
+      outline: 3px solid rgba(87, 217, 255, 0.72);
+      outline-offset: 3px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @media (max-width: 640px) {
+      .main-content { padding: 1rem; }
+      .gauge-track { transform: scale(0.88); margin-top: -10px; margin-bottom: -16px; }
+    }
+  </style>
+  <script src="/_sdk/0179d719c431a79e.data_sdk.js" type="text/javascript" integrity="sha512-OsRvJkI5GkC3MJQcgotQYotpzrMSX415GiKKgvYdxQEEkzD/fdchShO2FMSy0PJr/tiINMXOk5Vl2zAgg6bUiA=="></script>
+  <script src="/_sdk/9432170dbd2ae0df.resizing_sdk.js" type="text/javascript" integrity="sha512-FeT+58sb1f9ejWPWFjCbJvTT+SDwGV+ngrHUnlO7TWEOoqwOLj6p256kO3vOL7DIWl1cIgrobiof8v2bOigwPg=="></script>
+ </head>
+ <body data-template-id="__page-root">
+  <div class="app-shell">
+   <header class="w-full">
+    <div class="main-content pb-0">
+     <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+       <p data-template-id="header-eyebrow" class="canva-text eyebrow text-[#64f3b8]"></p>
+       <h1 data-template-id="app-title" class="canva-text mt-2 font-bold tracking-tight"></h1>
+       <p data-template-id="app-subtitle" class="canva-text mt-2 max-w-2xl leading-relaxed text-[#9fb8b2]"></p>
+      </div>
+      <div class="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-2 self-start sm:self-auto">
+       <span id="status-dot" class="status-dot" aria-hidden="true"></span> <span id="mic-status" data-template-id="mic-status-idle" class="canva-text text-sm font-medium text-[#b9cdc8]"></span>
+      </div>
+     </div>
+    </div>
+   </header>
+   <main class="main-content pt-7">
+    <section class="grid gap-6 lg:grid-cols-[1.55fr_0.9fr]" aria-label="Pitch detection workspace">
+     <article data-template-id="tuner-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5 sm:p-7">
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+       <div>
+        <p data-template-id="tuner-label" class="canva-text eyebrow text-[#57d9ff]"></p>
+        <h2 data-template-id="tuner-heading" class="canva-text mt-2 font-bold"></h2>
+       </div><span id="tune-state" class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-[#b7cbc6]">READY</span>
+      </div>
+      <div class="mt-7 grid gap-6 md:grid-cols-[0.82fr_1.18fr] md:items-center">
+       <div class="rounded-2xl border border-white/10 bg-[#041619]/60 px-5 py-6 text-center">
+        <p data-template-id="detected-note-label" class="canva-text text-sm font-medium text-[#9bb2ad]"></p>
+        <div id="detected-note" class="metric-value mt-1 text-6xl font-bold tracking-tight text-[#eafff7]" aria-live="polite">
+         —
+        </div>
+        <div class="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+         <div>
+          <p data-template-id="frequency-label" class="canva-text text-xs font-medium uppercase tracking-widest text-[#7e9791]"></p>
+          <p id="frequency-readout" class="metric-value mt-1 text-lg font-bold text-[#d8eee8]">0.0 Hz</p>
+         </div>
+         <div>
+          <p data-template-id="cents-label" class="canva-text text-xs font-medium uppercase tracking-widest text-[#7e9791]"></p>
+          <p id="cents-readout" class="metric-value mt-1 text-lg font-bold text-[#d8eee8]">0 ¢</p>
+         </div>
+        </div>
+       </div>
+       <div>
+        <div class="gauge-track" aria-label="Pitch tuning gauge">
+         <div class="gauge-arc"></div>
+         <div id="needle" class="needle"></div>
+         <div class="gauge-center"></div><span data-template-id="flat-label" class="canva-text absolute bottom-0 left-4 text-xs font-bold tracking-widest text-[#ff9294]"></span> <span data-template-id="in-tune-label" class="canva-text absolute bottom-0 left-1/2 -translate-x-1/2 text-xs font-bold tracking-widest text-[#64f3b8]"></span> <span data-template-id="sharp-label" class="canva-text absolute bottom-0 right-4 text-xs font-bold tracking-widest text-[#ffd57d]"></span>
+        </div>
+        <p id="tuning-message" class="mt-2 text-center text-sm font-medium text-[#a4bbb6]" aria-live="polite">等待聲音輸入</p>
+       </div>
+      </div>
+      <div class="mt-7 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row">
+       <button id="start-button" data-template-id="start-button" type="button" class="canva-button primary-action inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold shadow-lg shadow-[#64f3b8]/10"> <i data-lucide="mic" class="h-5 w-5"></i> </button> <button id="stop-button" data-template-id="stop-button" type="button" disabled class="canva-button inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-[#bdcfca] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"> <i data-lucide="square" class="h-4 w-4"></i> </button>
+      </div>
+      <p id="permission-message" data-template-id="permission-message" class="canva-text mt-4 text-sm leading-relaxed text-[#8ea6a1]"></p>
+     </article>
+     <aside class="flex flex-col gap-6">
+      <section data-template-id="fingering-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5">
+       <div class="flex items-center justify-between gap-4">
+        <div>
+         <p data-template-id="fingering-label" class="canva-text eyebrow text-[#57d9ff]"></p>
+         <h2 data-template-id="fingering-heading" class="canva-text mt-2 font-bold"></h2>
+        </div><i data-lucide="hand" class="h-6 w-6 text-[#64f3b8]" aria-hidden="true"></i>
+       </div>
+       <div id="fingering-container" class="mt-5 flex justify-center">
+        <svg id="fingering-diagram" viewbox="0 0 200 280" class="w-full max-w-[160px]" aria-label="Recorder fingering diagram"><!-- Recorder body --> <rect x="75" y="20" width="50" height="240" rx="25" fill="rgba(200, 150, 100, 0.3)" stroke="#d4a574" stroke-width="1.5"></rect> <!-- Hole labels and positions --> <circle id="hole-0" cx="100" cy="45" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="50" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          1
+         </text> <circle id="hole-1" cx="100" cy="75" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="80" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          2
+         </text> <circle id="hole-2" cx="100" cy="105" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="110" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          3
+         </text> <circle id="hole-3" cx="100" cy="135" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="140" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          4
+         </text> <circle id="hole-4" cx="100" cy="165" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="170" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          5
+         </text> <circle id="hole-5" cx="100" cy="195" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="200" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          6
+         </text> <circle id="hole-6" cx="100" cy="225" r="7" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1"></circle> <text x="100" y="230" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono">
+          7
+         </text>
+        </svg>
+       </div>
+       <p id="fingering-note" class="mt-4 text-center text-sm font-medium text-[#a4bbb6]" aria-live="polite">選擇一個音符或吹奏以查看指法</p>
+      </section>
+      <section data-template-id="wave-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5">
+       <div class="flex items-center justify-between gap-4">
+        <div>
+         <p data-template-id="wave-label" class="canva-text eyebrow text-[#57d9ff]"></p>
+         <h2 data-template-id="wave-heading" class="canva-text mt-2 font-bold"></h2>
+        </div><i data-lucide="activity" class="h-6 w-6 text-[#64f3b8]" aria-hidden="true"></i>
+       </div>
+       <canvas id="waveform" class="wave-canvas mt-5" aria-label="Live microphone waveform"></canvas>
+      </section>
+      <section data-template-id="practice-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5">
+       <div class="flex items-start justify-between gap-3">
+        <div>
+         <p data-template-id="practice-label" class="canva-text eyebrow text-[#ffc85d]"></p>
+         <h2 data-template-id="practice-heading" class="canva-text mt-2 font-bold"></h2>
+        </div>
+        <div class="relative h-14 w-14 shrink-0">
+         <svg viewbox="0 0 90 90" class="h-full w-full -rotate-90" aria-hidden="true">
+          <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="8"></circle> <circle id="progress-ring" class="progress-ring" cx="45" cy="45" r="40" fill="none" stroke="#64f3b8" stroke-linecap="round" stroke-width="8"></circle>
+         </svg><span id="hold-percent" class="absolute inset-0 flex items-center justify-center font-mono text-xs font-bold text-[#d9fff1]">0%</span>
+        </div>
+       </div>
+       <p data-template-id="practice-description" class="canva-text mt-3 text-sm leading-relaxed text-[#9fb6b1]"></p>
+       <div class="mt-5 grid grid-cols-4 gap-2" role="group" aria-label="Select a practice note">
+        <button type="button" class="note-chip is-selected rounded-lg px-2 py-2 text-sm font-bold" data-note="C5">C5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="D5">D5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="E5">E5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="F5">F5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="G5">G5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="A5">A5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="B5">B5</button> <button type="button" class="note-chip rounded-lg px-2 py-2 text-sm font-bold" data-note="C6">C6</button>
+       </div>
+       <div class="mt-5 rounded-xl border border-white/10 bg-[#041619]/65 p-4">
+        <p data-template-id="target-label" class="canva-text text-xs font-semibold uppercase tracking-widest text-[#7e9791]"></p>
+        <p id="target-note" class="metric-value mt-1 text-3xl font-bold text-[#64f3b8]">C5</p>
+        <p id="practice-status" class="mt-2 text-sm font-medium text-[#a5bbb6]" aria-live="polite">選擇音符後，穩定吹奏 1 秒。</p>
+       </div>
+      </section>
+     </aside>
+    </section>
+    <footer class="pt-7 text-center">
+     <p data-template-id="footer-note" class="canva-text text-xs text-[#78918b]"></p>
+    </footer>
+   </main>
+  </div>
+  <script src="/_sdk/719055fef2a85d14.editing_sdk.js" integrity="sha512-kFqrdGgIiTOsu307feB5Cy3JVP9IayftsmCIZ0csxYBGuBmJQPhyvcnmKR8F0fTW97h5s1gAvz3SumI8zJ6OxQ=="></script>
+  <script>
+    const startButton = document.getElementById("start-button");
+    const stopButton = document.getElementById("stop-button");
+    const statusDot = document.getElementById("status-dot");
+    const micStatus = document.getElementById("mic-status");
+    const permissionMessage = document.getElementById("permission-message");
+    const waveform = document.getElementById("waveform");
+    const waveContext = waveform.getContext("2d");
+    const noteReadout = document.getElementById("detected-note");
+    const frequencyReadout = document.getElementById("frequency-readout");
+    const centsReadout = document.getElementById("cents-readout");
+    const needle = document.getElementById("needle");
+    const tuneState = document.getElementById("tune-state");
+    const tuningMessage = document.getElementById("tuning-message");
+    const targetNoteEl = document.getElementById("target-note");
+    const practiceStatus = document.getElementById("practice-status");
+    const progressRing = document.getElementById("progress-ring");
+    const holdPercent = document.getElementById("hold-percent");
+
+    let audioContext;
+    let analyser;
+    let stream;
+    let animationFrame;
+    let timeData;
+    let active = false;
+    let targetNote = "C5";
+    let holdStart = null;
+    let completedTarget = false;
+    const holdDuration = 1000;
+    const noteButtons = [...document.querySelectorAll(".note-chip")];
+
+    const notes = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+
+    // Recorder fingering patterns: which holes are covered (1 = covered, 0 = open)
+    const fingeringChart = {
+      "C4": { holes: [1, 1, 1, 1, 1, 1, 1], display: "全部蓋住" },
+      "D4": { holes: [1, 1, 1, 1, 1, 1, 0], display: "蓋住 1-6" },
+      "E4": { holes: [1, 1, 1, 1, 1, 0, 0], display: "蓋住 1-5" },
+      "F4": { holes: [1, 1, 1, 1, 0, 0, 0], display: "蓋住 1-4" },
+      "G4": { holes: [1, 1, 1, 0, 0, 0, 0], display: "蓋住 1-3" },
+      "A4": { holes: [1, 1, 0, 0, 0, 0, 0], display: "蓋住 1-2" },
+      "B4": { holes: [1, 0, 0, 0, 0, 0, 0], display: "蓋住 1" },
+      "C5": { holes: [0, 1, 1, 1, 1, 1, 1], display: "食指按 2" },
+      "D5": { holes: [0, 1, 1, 1, 1, 1, 0], display: "食指按 2，7 開" },
+      "E5": { holes: [0, 1, 1, 1, 1, 0, 0], display: "食指按 2，6-7 開" },
+      "F5": { holes: [0, 1, 1, 1, 0, 0, 0], display: "食指按 2，5-7 開" },
+      "G5": { holes: [0, 1, 1, 0, 0, 0, 0], display: "食指按 2，4-7 開" },
+      "A5": { holes: [0, 1, 0, 0, 0, 0, 0], display: "食指按 2，3-7 開" },
+      "B5": { holes: [0, 0, 0, 0, 0, 0, 0], display: "全部開放" },
+      "C6": { holes: [1, 0, 1, 1, 1, 1, 1], display: "封 1、3-7" }
+    };
+
+    function setMicStatus(text, live) {
+      micStatus.textContent = text;
+      statusDot.classList.toggle("is-live", live);
+    }
+
+    function resizeCanvas() {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = waveform.getBoundingClientRect();
+      waveform.width = Math.max(1, Math.floor(rect.width * ratio));
+      waveform.height = Math.max(1, Math.floor(rect.height * ratio));
+      waveContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    function drawWaveform(data) {
+      const width = waveform.clientWidth;
+      const height = waveform.clientHeight;
+      waveContext.clearRect(0, 0, width, height);
+
+      waveContext.strokeStyle = "rgba(100,243,184,0.18)";
+      waveContext.lineWidth = 1;
+      waveContext.beginPath();
+      waveContext.moveTo(0, height / 2);
+      waveContext.lineTo(width, height / 2);
+      waveContext.stroke();
+
+      waveContext.strokeStyle = "#64f3b8";
+      waveContext.lineWidth = 2;
+      waveContext.shadowColor = "rgba(100,243,184,0.8)";
+      waveContext.shadowBlur = 12;
+      waveContext.beginPath();
+
+      const slice = width / data.length;
+      for (let i = 0; i < data.length; i++) {
+        const x = i * slice;
+        const y = ((data[i] + 1) * 0.5) * height;
+        if (i === 0) waveContext.moveTo(x, y);
+        else waveContext.lineTo(x, y);
+      }
+
+      waveContext.stroke();
+      waveContext.shadowBlur = 0;
+    }
+
+    function autoCorrelate(buffer, sampleRate) {
+      const size = buffer.length;
+      let rms = 0;
+
+      for (let i = 0; i < size; i++) rms += buffer[i] * buffer[i];
+      rms = Math.sqrt(rms / size);
+      if (rms < 0.012) return -1;
+
+      let start = 0;
+      let end = size - 1;
+      const threshold = 0.18;
+
+      while (start < size / 2 && Math.abs(buffer[start]) < threshold) start++;
+      while (end > size / 2 && Math.abs(buffer[end]) < threshold) end--;
+
+      const clipped = buffer.slice(start, end);
+      const clippedSize = clipped.length;
+      if (clippedSize < 32) return -1;
+
+      const correlations = new Float32Array(clippedSize);
+      for (let lag = 0; lag < clippedSize; lag++) {
+        let sum = 0;
+        for (let i = 0; i < clippedSize - lag; i++) {
+          sum += clipped[i] * clipped[i + lag];
+        }
+        correlations[lag] = sum;
+      }
+
+      let dip = 0;
+      while (dip + 1 < clippedSize && correlations[dip] > correlations[dip + 1]) dip++;
+
+      let peak = -1;
+      let maxValue = -Infinity;
+      for (let i = dip; i < clippedSize; i++) {
+        if (correlations[i] > maxValue) {
+          maxValue = correlations[i];
+          peak = i;
+        }
+      }
+
+      if (peak <= 0) return -1;
+
+      const x1 = correlations[peak - 1] || correlations[peak];
+      const x2 = correlations[peak];
+      const x3 = correlations[peak + 1] || correlations[peak];
+      const adjustment = (x1 - x3) / (2 * (x1 - 2 * x2 + x3) || 1);
+      const period = peak + adjustment;
+
+      return sampleRate / period;
+    }
+
+    function frequencyToPitch(frequency) {
+      const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
+      const idealFrequency = 440 * Math.pow(2, (midi - 69) / 12);
+      const cents = 1200 * Math.log2(frequency / idealFrequency);
+      const name = notes[(midi + 120) % 12];
+      const octave = Math.floor(midi / 12) - 1;
+
+      return {
+        midi,
+        note: name + octave,
+        cents,
+        frequency
+      };
+    }
+
+    function updateTuner(pitch) {
+      const clampedCents = Math.max(-50, Math.min(50, pitch.cents));
+      const angle = clampedCents * 1.08;
+      needle.style.transform = `rotate(${angle}deg)`;
+
+      noteReadout.textContent = pitch.note;
+      frequencyReadout.textContent = `${pitch.frequency.toFixed(1)} Hz`;
+      centsReadout.textContent = `${pitch.cents > 0 ? "+" : ""}${Math.round(pitch.cents)} ¢`;
+
+      const absolute = Math.abs(pitch.cents);
+      if (absolute <= 8) {
+        needle.style.background = "linear-gradient(to top, #d9fff3, #64f3b8)";
+        tuneState.textContent = "IN TUNE";
+        tuneState.style.color = "#64f3b8";
+        tuneState.style.borderColor = "rgba(100,243,184,0.42)";
+        tuningMessage.textContent = "音準穩定，保持這個氣息。";
+      } else if (pitch.cents < 0) {
+        needle.style.background = "linear-gradient(to top, #ffe2db, #ff6d72)";
+        tuneState.textContent = "FLAT";
+        tuneState.style.color = "#ff9b9d";
+        tuneState.style.borderColor = "rgba(255,109,114,0.42)";
+        tuningMessage.textContent = "音高稍低，試著提升氣流。";
+      } else {
+        needle.style.background = "linear-gradient(to top, #fff0c9, #ffc85d)";
+        tuneState.textContent = "SHARP";
+        tuneState.style.color = "#ffd57d";
+        tuneState.style.borderColor = "rgba(255,200,93,0.42)";
+        tuningMessage.textContent = "音高稍高，放鬆氣流試試。";
+      }
+
+      updateFingering(pitch.note);
+    }
+
+    function resetTuner() {
+      noteReadout.textContent = "—";
+      frequencyReadout.textContent = "0.0 Hz";
+      centsReadout.textContent = "0 ¢";
+      needle.style.transform = "rotate(-55deg)";
+      needle.style.background = "linear-gradient(to top, #d9fff3, #64f3b8)";
+      tuneState.textContent = "READY";
+      tuneState.style.color = "#b7cbc6";
+      tuneState.style.borderColor = "rgba(255,255,255,0.1)";
+      tuningMessage.textContent = "等待聲音輸入";
+      updateFingering(null);
+    }
+
+    function updateFingering(note) {
+      const fingering = note ? fingeringChart[note] : null;
+      const fingeringNote = document.getElementById("fingering-note");
+
+      if (!fingering) {
+        fingeringNote.textContent = "選擇一個音符或吹奏以查看指法";
+        // Reset all holes to neutral
+        for (let i = 0; i < 7; i++) {
+          const hole = document.getElementById(`hole-${i}`);
+          hole.style.fill = "rgba(255,255,255,0.08)";
+          hole.style.stroke = "#9fb8b2";
+        }
+        return;
+      }
+
+      fingeringNote.textContent = fingering.display;
+      // Update hole appearance based on coverage
+      for (let i = 0; i < 7; i++) {
+        const hole = document.getElementById(`hole-${i}`);
+        if (fingering.holes[i] === 1) {
+          hole.style.fill = "rgba(100,243,184,0.35)";
+          hole.style.stroke = "#64f3b8";
+        } else {
+          hole.style.fill = "rgba(255,255,255,0.08)";
+          hole.style.stroke = "#9fb8b2";
+        }
+      }
+    }
+
+    function resetPracticeProgress() {
+      holdStart = null;
+      completedTarget = false;
+      progressRing.style.strokeDashoffset = "251.2";
+      holdPercent.textContent = "0%";
+      practiceStatus.textContent = "選擇音符後，穩定吹奏 1 秒。";
+      practiceStatus.style.color = "#a5bbb6";
+    }
+
+    function updatePractice(pitch) {
+      const isMatch = pitch.note === targetNote && Math.abs(pitch.cents) <= 15;
+
+      if (!isMatch || completedTarget) {
+        if (!completedTarget) {
+          holdStart = null;
+          progressRing.style.strokeDashoffset = "251.2";
+          holdPercent.textContent = "0%";
+          practiceStatus.textContent = `目標是 ${targetNote}，穩定吹奏並保持音準。`;
+          practiceStatus.style.color = "#a5bbb6";
+        }
+        return;
+      }
+
+      if (!holdStart) holdStart = performance.now();
+      const elapsed = performance.now() - holdStart;
+      const progress = Math.min(1, elapsed / holdDuration);
+
+      progressRing.style.strokeDashoffset = String(251.2 * (1 - progress));
+      holdPercent.textContent = `${Math.round(progress * 100)}%`;
+
+      if (progress >= 1) {
+        completedTarget = true;
+        practiceStatus.textContent = `完成！你穩定吹準了 ${targetNote}。`;
+        practiceStatus.style.color = "#64f3b8";
+      } else {
+        practiceStatus.textContent = `很好，繼續保持 ${targetNote}…`;
+        practiceStatus.style.color = "#d8fff0";
+      }
+    }
+
+    function processAudio() {
+      if (!active || !analyser) return;
+
+      analyser.getFloatTimeDomainData(timeData);
+      drawWaveform(timeData);
+
+      const frequency = autoCorrelate(timeData, audioContext.sampleRate);
+      if (frequency > 100 && frequency < 2200) {
+        const pitch = frequencyToPitch(frequency);
+        updateTuner(pitch);
+        updatePractice(pitch);
+      } else {
+        resetTuner();
+        if (!completedTarget) {
+          holdStart = null;
+          progressRing.style.strokeDashoffset = "251.2";
+          holdPercent.textContent = "0%";
+        }
+      }
+
+      animationFrame = requestAnimationFrame(processAudio);
+    }
+
+    async function startListening() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        permissionMessage.textContent = "此瀏覽器不支援麥克風音高辨識功能。";
+        return;
+      }
+
+      startButton.disabled = true;
+      startButton.classList.add("opacity-60", "cursor-wait");
+      permissionMessage.textContent = "正在要求麥克風存取權限…";
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.resume();
+
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.15;
+        source.connect(analyser);
+
+        timeData = new Float32Array(analyser.fftSize);
+        active = true;
+        resizeCanvas();
+        setMicStatus("麥克風已啟動", true);
+        permissionMessage.textContent = "請將直笛靠近麥克風，並以穩定單音吹奏。";
+        startButton.classList.add("hidden");
+        stopButton.classList.remove("hidden");
+        stopButton.disabled = false;
+
+        processAudio();
+      } catch (error) {
+        permissionMessage.textContent = "無法啟動麥克風。請確認已允許存取權限後再試一次。";
+        startButton.disabled = false;
+        startButton.classList.remove("opacity-60", "cursor-wait");
+        setMicStatus("等待麥克風", false);
+      }
+    }
+
+    async function stopListening() {
+      active = false;
+      cancelAnimationFrame(animationFrame);
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+
+      if (audioContext) {
+        await audioContext.close();
+        audioContext = null;
+      }
+
+      analyser = null;
+      startButton.disabled = false;
+      startButton.classList.remove("hidden", "opacity-60", "cursor-wait");
+      stopButton.classList.add("hidden");
+      stopButton.disabled = true;
+      setMicStatus("等待麥克風", false);
+      permissionMessage.textContent = "麥克風已停止。準備好後可再次開始偵測。";
+      resetTuner();
+      resetPracticeProgress();
+      drawWaveform(new Float32Array(128));
+    }
+
+    startButton.addEventListener("click", startListening);
+    stopButton.addEventListener("click", stopListening);
+
+    noteButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        targetNote = button.dataset.note;
+        targetNoteEl.textContent = targetNote;
+        noteButtons.forEach(item => item.classList.toggle("is-selected", item === button));
+        resetPracticeProgress();
+        practiceStatus.textContent = `目標是 ${targetNote}，穩定吹奏並保持音準。`;
+        updateFingering(targetNote);
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      drawWaveform(new Float32Array(128));
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      resizeCanvas();
+      drawWaveform(new Float32Array(128));
+    });
+  </script>
+ </body>
+</html>
