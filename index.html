@@ -1,21 +1,20 @@
 <!doctype html>
 <html lang="zh-Hant">
  <head>
-  <script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260714-05-1435aa9"}');</script>
-  <script src="/_sdk/f432b76fb310b513.telemetry_sdk.js" integrity="sha512-9FJQ55EKmmqhyyik8BhrMVfm0+iYYfb8uOlRsjtkxJMEI97qOVEI4PnHohDjQAtvAep0IOEpdQ64eki0sz62ug=="></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>音高偵查員 Recorder Pitch Scout</title>
+  <!-- 載入 Tailwind CSS、Lucide 圖示與 Google 數位字型 -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   
   <style>
     :root {
       --ink: #eaf6f2;
       --muted: #8ea6a1;
-      --panel: rgba(10, 28, 31, 0.72);
-      --line: rgba(175, 255, 226, 0.16);
+      --panel: rgba(10, 28, 31, 0.75);
+      --line: rgba(175, 255, 226, 0.15);
       --mint: #64f3b8;
       --aqua: #57d9ff;
       --amber: #ffc85d;
@@ -30,11 +29,12 @@
       font-family: "DM Sans", sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(circle at 12% 16%, rgba(87, 217, 255, 0.16), transparent 30%),
-        radial-gradient(circle at 84% 6%, rgba(100, 243, 184, 0.14), transparent 27%),
-        linear-gradient(145deg, #061416 0%, #081f22 44%, #051316 100%);
+        radial-gradient(circle at 12% 16%, rgba(87, 217, 255, 0.14), transparent 35%),
+        radial-gradient(circle at 84% 6%, rgba(100, 243, 184, 0.12), transparent 30%),
+        linear-gradient(145deg, #051214 0%, #081e21 50%, #041113 100%);
     }
 
+    /* 限制畫布高度與溢出 */
     .app-shell {
       width: 100%;
       min-height: 100vh;
@@ -42,137 +42,135 @@
       overflow-x: hidden;
     }
 
+    /* 微妙的發光背景光暈 */
     .app-shell::before,
     .app-shell::after {
       content: "";
       position: absolute;
       pointer-events: none;
       border-radius: 999px;
-      filter: blur(40px);
-      opacity: 0.55;
+      filter: blur(60px);
+      opacity: 0.45;
     }
 
     .app-shell::before {
-      width: 15rem;
-      height: 15rem;
-      right: -5rem;
-      bottom: 10%;
-      background: rgba(87, 217, 255, 0.13);
+      width: 20rem;
+      height: 20rem;
+      right: -8rem;
+      bottom: 12%;
+      background: rgba(87, 217, 255, 0.1);
     }
 
     .app-shell::after {
-      width: 13rem;
-      height: 13rem;
-      left: -5rem;
-      top: 42%;
-      background: rgba(100, 243, 184, 0.1);
+      width: 18rem;
+      height: 18rem;
+      left: -8rem;
+      top: 30%;
+      background: rgba(100, 243, 184, 0.08);
     }
 
-    .main-content {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 1320px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-    }
-
+    /* 精緻玻璃面板樣式 */
     .glass-panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.22);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      transition: all 0.3s ease;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .glass-panel:hover {
+      border-color: rgba(100, 243, 184, 0.25);
     }
 
+    /* 頂部裝飾小標 */
     .eyebrow {
-      letter-spacing: 0.16em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       font-family: "Space Mono", monospace;
-      font-size: 0.72rem;
+      font-size: 0.75rem;
     }
 
+    /* 麥克風動態呼吸點 */
     .status-dot {
-      width: 0.55rem;
-      height: 0.55rem;
+      width: 0.6rem;
+      height: 0.6rem;
       border-radius: 999px;
-      background: #6e8580;
+      background: #5d7570;
       box-shadow: 0 0 0 rgba(100, 243, 184, 0);
-      transition: 0.25s ease;
+      transition: 0.3s ease;
     }
 
     .status-dot.is-live {
       background: var(--mint);
-      box-shadow: 0 0 15px rgba(100, 243, 184, 0.85);
-      animation: pulse 1.5s infinite;
+      box-shadow: 0 0 14px rgba(100, 243, 184, 0.8);
+      animation: pulse 1.6s infinite;
     }
 
+    /* 儀表指針軌跡 */
     .gauge-track {
       position: relative;
-      width: min(100%, 440px);
-      height: 180px;
+      width: 100%;
+      max-width: 320px;
+      height: 140px;
       overflow: hidden;
       margin: 0 auto;
     }
 
     .gauge-arc {
       position: absolute;
-      width: 360px;
-      height: 360px;
+      width: 260px;
+      height: 260px;
       left: 50%;
-      bottom: -198px;
+      bottom: -135px;
       transform: translateX(-50%);
-      border: 22px solid rgba(255,255,255,0.06);
+      border: 16px solid rgba(255,255,255,0.05);
       border-top-color: var(--coral);
       border-right-color: var(--amber);
       border-bottom-color: transparent;
       border-left-color: var(--amber);
       border-radius: 50%;
-      transform-origin: center;
     }
 
     .gauge-center {
       position: absolute;
       left: 50%;
-      bottom: 15px;
+      bottom: -4px;
       transform: translateX(-50%);
-      width: 28px;
-      height: 28px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      border: 7px solid #d7fff0;
-      background: #0c2727;
+      border: 5px solid #d7fff0;
+      background: #081d20;
       z-index: 4;
-      box-shadow: 0 0 24px rgba(100, 243, 184, 0.4);
+      box-shadow: 0 0 15px rgba(100, 243, 184, 0.4);
     }
 
     .needle {
       position: absolute;
       left: calc(50% - 2px);
-      bottom: 30px;
+      bottom: 6px;
       width: 4px;
-      height: 143px;
+      height: 105px;
       border-radius: 999px;
       background: linear-gradient(to top, #d9fff3, var(--mint));
       transform-origin: bottom center;
       transform: rotate(-55deg);
       z-index: 3;
-      box-shadow: 0 0 18px rgba(100, 243, 184, 0.85);
-      transition: transform 0.12s linear, background 0.25s ease;
+      box-shadow: 0 0 12px rgba(100, 243, 184, 0.7);
+      transition: transform 0.1s linear;
     }
 
     .needle::before {
       content: "";
       position: absolute;
-      top: -4px;
-      left: -4px;
-      width: 12px;
-      height: 12px;
+      top: -3px;
+      left: -3px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #e8fff8;
-      box-shadow: 0 0 14px rgba(255,255,255,0.85);
+      box-shadow: 0 0 10px rgba(255,255,255,0.8);
     }
 
     .metric-value {
@@ -180,293 +178,331 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* 示波器畫布樣式 */
     .wave-canvas {
       width: 100%;
-      height: 150px;
+      height: 120px;
       display: block;
-      border-radius: 1rem;
+      border-radius: 0.85rem;
       background:
-        linear-gradient(rgba(100,243,184,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100,243,184,0.05) 1px, transparent 1px),
-        rgba(3, 19, 21, 0.7);
-      background-size: 24px 24px;
+        linear-gradient(rgba(100,243,184,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100,243,184,0.03) 1px, transparent 1px),
+        rgba(3, 15, 17, 0.8);
+      background-size: 20px 20px;
+      border: 1px solid rgba(100, 243, 184, 0.08);
     }
 
+    /* 音符按鈕樣式 - 提供高對比與好點擊的觸摸面積 */
     .note-chip {
-      border: 1px solid rgba(175,255,226,0.14);
-      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(175,255,226,0.12);
+      background: rgba(255,255,255,0.03);
       color: #bbcec8;
-      transition: 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
+      min-height: 44px; /* 行動端友善高度 */
     }
 
-    .note-chip:hover,
-    .note-chip:focus-visible {
-      border-color: rgba(100,243,184,0.75);
+    .note-chip:hover {
+      border-color: rgba(100,243,184,0.6);
+      background: rgba(100,243,184,0.05);
       color: #effff8;
-      outline: none;
+      transform: translateY(-1px);
     }
 
     .note-chip.is-selected {
-      background: rgba(100,243,184,0.16);
+      background: rgba(100,243,184,0.18);
       color: var(--mint);
-      border-color: rgba(100,243,184,0.75);
-      box-shadow: inset 0 0 18px rgba(100,243,184,0.08);
+      border-color: rgba(100,243,184,0.8);
+      box-shadow: 
+        inset 0 0 12px rgba(100,243,184,0.15),
+        0 4px 15px rgba(100,243,184,0.1);
     }
 
     .progress-ring {
       stroke-dasharray: 251.2;
       stroke-dashoffset: 251.2;
-      transition: stroke-dashoffset 0.08s linear;
+      transition: stroke-dashoffset 0.1s linear;
     }
 
+    /* 按鈕微動效 */
     .primary-action {
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: all 0.2s ease;
     }
-
-    .primary-action:hover { transform: translateY(-2px); }
-    .primary-action:focus-visible,
-    button:focus-visible {
-      outline: 3px solid rgba(87, 217, 255, 0.72);
-      outline-offset: 3px;
+    .primary-action:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+      box-shadow: 0 6px 20px rgba(100,243,184,0.3);
+    }
+    .primary-action:active {
+      transform: translateY(0);
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+      50% { opacity: 0.4; }
     }
 
-    @media (max-width: 640px) {
-      .main-content { padding: 1rem 1rem; }
-      .gauge-track { transform: scale(0.88); margin-top: -10px; margin-bottom: -16px; }
-    }
-
-    .grid-workspace {
-      width: 100%;
+    /* 寬螢幕三欄排版優化：強迫三張大卡片等高，易於操作閱讀 */
+    @media (min-width: 1024px) {
+      .grid-workspace {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 1.5rem;
+      }
+      .col-left { grid-column: span 4; }
+      .col-middle { grid-column: span 4; }
+      .col-right { grid-column: span 4; }
     }
   </style>
  </head>
  <body data-template-id="__page-root">
-  <div class="app-shell">
+  <div class="app-shell flex flex-col justify-between min-h-screen">
    
+   <!-- 頂部頁首區塊 -->
    <header class="w-full">
-    <div class="main-content pb-0">
-     <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-       <p data-template-id="header-eyebrow" class="canva-text eyebrow text-[#64f3b8]">Recorder Pitch Scout</p>
-       <h1 data-template-id="app-title" class="canva-text mt-2 text-3xl font-bold tracking-tight text-white">音高偵查員</h1>
-       <p data-template-id="app-subtitle" class="canva-text mt-2 max-w-2xl leading-relaxed text-[#9fb8b2]">
+       <!-- Recorder Pitch Scout 是音高偵查員上方的綠色字 -->
+       <p data-template-id="header-eyebrow" class="canva-text eyebrow text-[#64f3b8] font-bold tracking-widest">Recorder Pitch Scout</p>
+       <h1 data-template-id="app-title" class="canva-text mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-white">音高偵查員</h1>
+       <p data-template-id="app-subtitle" class="canva-text mt-1.5 max-w-2xl text-xs sm:text-sm leading-relaxed text-[#9fb8b2]">
          即時分析麥克風輸入，偵測直笛吹奏音高，輔助修正吹奏音準並提供正確指法引導。
        </p>
       </div>
-      <div class="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-2 self-start sm:self-auto">
+      <!-- 麥克風狀態列 -->
+      <div class="glass-panel inline-flex items-center gap-2.5 rounded-full px-4 py-1.5 self-start sm:self-auto">
        <span id="status-dot" class="status-dot" aria-hidden="true"></span> 
-       <span id="mic-status" data-template-id="mic-status-idle" class="canva-text text-sm font-medium text-[#b9cdc8]">等待麥克風</span>
+       <span id="mic-status" data-template-id="mic-status-idle" class="canva-text text-xs font-semibold tracking-wide text-[#b9cdc8]">等待麥克風</span>
       </div>
      </div>
     </div>
    </header>
 
-   <main class="main-content pt-7">
-    <section class="grid-workspace grid grid-cols-1 lg:grid-cols-12 gap-6" aria-label="Pitch detection workspace">
+   <!-- 主工作區：精緻等高三欄設計，容易閱讀與操作 -->
+   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-grow w-full">
+    <section class="grid-workspace flex flex-col gap-6" aria-label="Pitch detection workspace">
       
-      <!-- LEFT CONTAINER (Tuner and Waveform) -->
-      <div class="lg:col-span-6 xl:col-span-5 flex flex-col gap-6">
+      <!-- 第一欄 (左)：即時調音與聲波分析 -->
+      <div class="col-left flex flex-col gap-6">
         
-        <!-- TUNER PANEL -->
-        <article data-template-id="tuner-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5 sm:p-7 flex-1 flex flex-col justify-between">
+        <!-- 調音儀表卡片 -->
+        <article data-template-id="tuner-panel" class="canva-panel glass-panel rounded-2xl p-5 sm:p-6 flex flex-col justify-between flex-grow">
           <div>
-            <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div class="flex flex-row justify-between items-start border-b border-white/5 pb-3">
               <div>
-                <p data-template-id="tuner-label" class="canva-text eyebrow text-[#57d9ff]">REAL-TIME TUNER</p>
-                <h2 data-template-id="tuner-heading" class="canva-text mt-2 text-xl font-bold text-white">即時音高辨識</h2>
+                <p class="canva-text eyebrow text-xs text-[#57d9ff] font-bold">REAL-TIME TUNER</p>
+                <h2 class="canva-text mt-1 text-lg font-bold text-white">即時音高辨識</h2>
               </div>
-              <span id="tune-state" class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-[#b7cbc6]">READY</span>
+              <span id="tune-state" class="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-[#b7cbc6]">READY</span>
             </div>
             
-            <div class="mt-7 grid gap-6 md:grid-cols-[0.82fr_1.18fr] md:items-center">
-              <div class="rounded-2xl border border-white/10 bg-[#041619]/60 px-5 py-6 text-center">
-                <p data-template-id="detected-note-label" class="canva-text text-sm font-medium text-[#9bb2ad]">偵測到音符</p>
-                <div id="detected-note" class="metric-value mt-1 text-5xl font-bold tracking-tight text-[#eafff7]" aria-live="polite">—</div>
+            <div class="mt-4 flex flex-col gap-4">
+              <!-- 音符數值顯示區 -->
+              <div class="rounded-xl border border-white/5 bg-[#031315]/75 px-4 py-4 text-center">
+                <p data-template-id="detected-note-label" class="canva-text text-xs font-medium text-[#9bb2ad]">偵測到音符</p>
+                <div id="detected-note" class="metric-value mt-0.5 text-4xl sm:text-5xl font-bold tracking-tight text-[#eafff7]" aria-live="polite">—</div>
                 
-                <div class="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+                <div class="mt-3.5 grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
                   <div>
-                    <p data-template-id="frequency-label" class="canva-text text-[10px] font-semibold uppercase tracking-widest text-[#7e9791]">頻率</p>
-                    <p id="frequency-readout" class="metric-value mt-1 text-base font-bold text-[#d8eee8]">0.0 Hz</p>
+                    <p class="canva-text text-[10px] font-bold uppercase tracking-wider text-[#7e9791]">頻率</p>
+                    <p id="frequency-readout" class="metric-value mt-0.5 text-sm sm:text-base font-bold text-[#d8eee8]">0.0 Hz</p>
                   </div>
                   <div>
-                    <p data-template-id="cents-label" class="canva-text text-[10px] font-semibold uppercase tracking-widest text-[#7e9791]">音分誤差</p>
-                    <p id="cents-readout" class="metric-value mt-1 text-base font-bold text-[#d8eee8]">0 ¢</p>
+                    <p class="canva-text text-[10px] font-bold uppercase tracking-wider text-[#7e9791]">音分誤差</p>
+                    <p id="cents-readout" class="metric-value mt-0.5 text-sm sm:text-base font-bold text-[#d8eee8]">0 ¢</p>
                   </div>
                 </div>
               </div>
               
-              <div>
+              <!-- 調音半圓指針區 -->
+              <div class="py-2">
                 <div class="gauge-track" aria-label="Pitch tuning gauge">
                   <div class="gauge-arc"></div>
                   <div id="needle" class="needle"></div>
                   <div class="gauge-center"></div>
                 </div>
-                <div class="flex justify-between w-[min(100%,340px)] mx-auto px-4 mt-2">
-                  <span data-template-id="flat-label" class="canva-text text-xs font-bold tracking-widest text-[#ff9294]">FLAT</span> 
-                  <span data-template-id="in-tune-label" class="canva-text text-xs font-bold tracking-widest text-[#64f3b8]">IN TUNE</span> 
-                  <span data-template-id="sharp-label" class="canva-text text-xs font-bold tracking-widest text-[#ffd57d]">SHARP</span>
+                <!-- 刻度與標籤完全放置於圓弧底部，杜絕重疊問題 -->
+                <div class="flex justify-between w-full max-w-[280px] mx-auto px-2 mt-1">
+                  <span class="canva-text text-[10px] font-extrabold tracking-widest text-[#ff6d72]">FLAT</span> 
+                  <span class="canva-text text-[10px] font-extrabold tracking-widest text-[#64f3b8]">IN TUNE</span> 
+                  <span class="canva-text text-[10px] font-extrabold tracking-widest text-[#ffd57d]">SHARP</span>
                 </div>
-                <p id="tuning-message" class="mt-4 text-center text-sm font-medium text-[#a4bbb6]" aria-live="polite">等待聲音輸入</p>
+                <p id="tuning-message" class="mt-3 text-center text-xs font-semibold text-[#a4bbb6]" aria-live="polite">等待聲音輸入</p>
               </div>
             </div>
           </div>
           
-          <div class="mt-7 pt-5 border-t border-white/10">
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <button id="start-button" data-template-id="start-button" type="button" class="canva-button primary-action inline-flex items-center justify-center gap-2 rounded-xl bg-[#64f3b8] text-[#051316] px-5 py-3 font-bold shadow-lg shadow-[#64f3b8]/10 hover:brightness-110">
-                <i data-lucide="mic" class="h-5 w-5"></i> 開始偵測
+          <!-- 操作按鈕與提示 -->
+          <div class="mt-4 pt-4 border-t border-white/5">
+            <div class="flex flex-col gap-2">
+              <button id="start-button" data-template-id="start-button" type="button" class="canva-button primary-action inline-flex items-center justify-center gap-2 rounded-xl bg-[#64f3b8] text-[#051316] w-full py-3 font-bold shadow-md shadow-[#64f3b8]/10">
+                <i data-lucide="mic" class="h-4.5 w-4.5"></i> 開始偵測
               </button> 
-              <button id="stop-button" data-template-id="stop-button" type="button" disabled class="canva-button hidden inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-[#bdcfca] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45">
+              <button id="stop-button" data-template-id="stop-button" type="button" disabled class="canva-button hidden inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 w-full py-3 font-bold text-[#bdcfca] transition hover:bg-white/10 disabled:opacity-45">
                 <i data-lucide="square" class="h-4 w-4"></i> 停止偵測
               </button>
             </div>
-            <p id="permission-message" data-template-id="permission-message" class="canva-text mt-4 text-xs leading-relaxed text-[#8ea6a1]">
-              點擊「開始偵測」並允許麥克風存取權限，即可開始調音與指法比對。
+            <p id="permission-message" data-template-id="permission-message" class="canva-text mt-3 text-[11px] leading-relaxed text-[#8ea6a1] text-center">
+              點擊「開始偵測」允許麥克風權限以進行調音。
             </p>
           </div>
         </article>
 
-        <!-- WAVE PANEL -->
-        <section data-template-id="wave-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5">
-          <div class="flex items-center justify-between gap-4">
+        <!-- 聲波圖卡片 -->
+        <section data-template-id="wave-panel" class="canva-panel glass-panel rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
             <div>
-              <p data-template-id="wave-label" class="canva-text eyebrow text-[#57d9ff]">SIGNAL VISUALIZER</p>
-              <h2 data-template-id="wave-heading" class="canva-text mt-2 text-lg font-bold text-white">即時聲波分析</h2>
+              <p class="canva-text eyebrow text-[10px] text-[#57d9ff] font-bold">SIGNAL VISUALIZER</p>
+              <h2 class="canva-text text-sm font-bold text-white">即時聲波分析</h2>
             </div>
-            <i data-lucide="activity" class="h-6 w-6 text-[#64f3b8]" aria-hidden="true"></i>
+            <i data-lucide="activity" class="h-5 w-5 text-[#64f3b8]" aria-hidden="true"></i>
           </div>
-          <canvas id="waveform" class="wave-canvas mt-5" aria-label="Live microphone waveform"></canvas>
+          <canvas id="waveform" class="wave-canvas mt-3" aria-label="Live microphone waveform"></canvas>
         </section>
       </div>
 
-      <!-- RIGHT CONTAINER (Fingering and Practice - Side-by-Side!) -->
-      <div class="lg:col-span-6 xl:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+      <!-- 第二欄 (中)：直笛指法對照表 -->
+      <section class="col-middle canva-panel glass-panel rounded-2xl p-5 sm:p-6 flex flex-col justify-between flex-grow">
+        <div>
+          <div class="flex items-center justify-between pb-3 border-b border-white/5">
+            <div>
+              <p class="canva-text eyebrow text-xs text-[#57d9ff] font-bold">RECORDER FINGERING</p>
+              <h2 class="canva-text mt-1 text-lg font-bold text-white">直笛指法對照表</h2>
+            </div>
+            <!-- 指法來源狀態徽章 (即時偵測中 / 目標指法) -->
+            <span id="fingering-source-badge" class="rounded-full bg-white/5 border border-white/10 text-[10px] font-bold px-2 py-0.5 text-[#8ea6a1] tracking-wide">練習目標</span>
+          </div>
+          
+          <!-- 指法 SVG 渲染區：大幅拓寬橫向空間，手部移至兩側且完全不重合 -->
+          <div id="fingering-container" class="mt-6 flex justify-center items-center bg-[#031315]/40 rounded-xl py-6 border border-white/5">
+            <svg id="fingering-diagram" viewBox="0 0 340 280" class="h-64 sm:h-72 w-auto" aria-label="Recorder fingering diagram">
+              
+              <!-- 左手控制引導區域 (包含拇指孔與1-3孔) -->
+              <text x="45" y="15" font-size="10" fill="#64f3b8" text-anchor="middle" class="font-mono font-bold select-none opacity-80">左手 L</text>
+              <path d="M 135,32 L 20,32 L 20,118 L 135,118" fill="none" stroke="rgba(100,243,184,0.22)" stroke-width="1" stroke-dasharray="3 3" />
+              
+              <!-- 左手掌圖示 (朝向右邊指向直笛本體，完美推移至左側 X=52) -->
+              <g id="left-hand-icon" transform="translate(52, 45) scale(-1, 1)" class="text-[#64f3b8] stroke-current fill-none" opacity="0.8">
+                <path d="M 12,36 C 12,30 6,26 5,21 C 4.2,17.5 7.5,16.5 9,19 C 10.5,21.5 12,24 12,21 C 12,14 13.5,9 15.5,9 C 17.5,9 18,14 18,21 C 18,13 19.5,8 21.5,8 C 23.5,8 24,13 24,21 C 24,14 25.5,9 27.5,9 C 29.5,9 30,14 30,22 C 30,16 31.5,12 33.5,12 C 35.5,12 36,16 36,26 C 36,32 32,36 26,36 Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </g>
+
+              <!-- 拇指孔 (0)：完美對齊孔 1 且尺寸線寬一致 -->
+              <circle id="hole-0" cx="110" cy="45" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="110" y="48.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">0</text>
+
+              <!-- 直笛笛身主體 -->
+              <rect x="150" y="20" width="40" height="240" rx="20" fill="rgba(180, 130, 90, 0.18)" stroke="#d4a574" stroke-width="1.5"></rect> 
+
+              <!-- 直笛孔 1 至 3 -->
+              <circle id="hole-1" cx="170" cy="45" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="48.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">1</text>
+              
+              <circle id="hole-2" cx="170" cy="75" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="78.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">2</text>
+              
+              <circle id="hole-3" cx="170" cy="105" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="108.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">3</text>
+              
+              <!-- 右手控制引導區域 (包含4-7孔) -->
+              <text x="295" y="112" font-size="10" fill="#57d9ff" text-anchor="middle" class="font-mono font-bold select-none opacity-80">右手 R</text>
+              <path d="M 205,125 L 320,125 L 320,235 L 205,235" fill="none" stroke="rgba(87,217,255,0.22)" stroke-width="1" stroke-dasharray="3 3" />
+
+              <!-- 右手掌圖示 (朝向左邊指向直笛本體，完美推移至右側 X=255) -->
+              <g id="right-hand-icon" transform="translate(255, 140) scale(1, 1)" class="text-[#57d9ff] stroke-current fill-none" opacity="0.8">
+                <path d="M 12,36 C 12,30 6,26 5,21 C 4.2,17.5 7.5,16.5 9,19 C 10.5,21.5 12,24 12,21 C 12,14 13.5,9 15.5,9 C 17.5,9 18,14 18,21 C 18,13 19.5,8 21.5,8 C 23.5,8 24,13 24,21 C 24,14 25.5,9 27.5,9 C 29.5,9 30,14 30,22 C 30,16 31.5,12 33.5,12 C 35.5,12 36,16 36,26 C 36,32 32,36 26,36 Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </g>
+
+              <!-- 直笛孔 4 至 7 -->
+              <circle id="hole-4" cx="170" cy="135" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="138.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">4</text>
+              
+              <circle id="hole-5" cx="170" cy="165" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="168.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">5</text>
+              
+              <circle id="hole-6" cx="170" cy="195" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="198.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">6</text>
+              
+              <circle id="hole-7" cx="170" cy="225" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
+              <text x="170" y="228.5" font-size="9" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">7</text>
+            </svg>
+          </div>
+        </div>
         
-        <!-- FINGERING PANEL -->
-        <section data-template-id="fingering-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5 flex flex-col justify-between h-full">
-          <div>
-            <div class="flex items-center justify-between gap-4">
-              <div>
-                <p data-template-id="fingering-label" class="canva-text eyebrow text-[#57d9ff]">RECORDER FINGERING</p>
-                <h2 data-template-id="fingering-heading" class="canva-text mt-2 text-lg font-bold text-white">直笛指法對照表</h2>
-              </div>
+        <!-- 指法說明備註 -->
+        <div class="mt-4 border-t border-white/5 pt-4">
+          <div class="rounded-lg bg-[#031315]/50 px-4 py-3 border border-white/5 text-center">
+            <span class="text-[10px] text-[#7e9791] uppercase tracking-wider block mb-1">對應指法編號</span>
+            <p id="fingering-note" class="text-sm font-bold text-[#64f3b8]" aria-live="polite">選擇音符或吹奏以查看指法</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 第三欄 (右)：吹奏穩定度挑戰 (PRACTICE MODE) -->
+      <section class="col-right canva-panel glass-panel rounded-2xl p-5 sm:p-6 flex flex-col justify-between flex-grow">
+        <div>
+          <!-- 面板頁首：挑戰與進度百分比 -->
+          <div class="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
+            <div>
+              <p class="canva-text eyebrow text-xs text-[#ffc85d] font-bold">PRACTICE CHALLENGE</p>
+              <h2 class="canva-text mt-1 text-lg font-bold text-white">吹奏穩定度挑戰</h2>
             </div>
-            
-            <div id="fingering-container" class="mt-8 flex justify-center items-center">
-              <svg id="fingering-diagram" viewBox="0 0 340 280" class="h-72 w-auto" aria-label="Recorder fingering diagram">
-                
-                <!-- Left Hand Visual Guideline (Combines Thumb 0 and Holes 1-3) -->
-                <text x="45" y="15" font-size="8.5" fill="#64f3b8" text-anchor="middle" class="font-mono font-bold select-none">左手 L</text>
-                <path d="M 135,32 L 25,32 L 25,118 L 135,118" fill="none" stroke="rgba(100,243,184,0.3)" stroke-width="1.2" stroke-dasharray="2 2" />
-                
-                <!-- LEFT HAND ICON (Moved further left, Thumb pointing right to the recorder) -->
-                <g id="left-hand-icon" transform="translate(85, 45) scale(-1, 1)" class="text-[#64f3b8] stroke-current fill-none" opacity="0.85">
-                  <path d="M 12,36 C 12,30 6,26 5,21 C 4.2,17.5 7.5,16.5 9,19 C 10.5,21.5 12,24 12,21 C 12,14 13.5,9 15.5,9 C 17.5,9 18,14 18,21 C 18,13 19.5,8 21.5,8 C 23.5,8 24,13 24,21 C 24,14 25.5,9 27.5,9 C 29.5,9 30,14 30,22 C 30,16 31.5,12 33.5,12 C 35.5,12 36,16 36,26 C 36,32 32,36 26,36 Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </g>
-
-                <!-- Thumb Hole (0) -->
-                <circle id="hole-0" cx="115" cy="45" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="115" y="48.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">0</text>
-
-                <!-- Recorder Body Outline -->
-                <rect x="150" y="20" width="40" height="240" rx="20" fill="rgba(200, 150, 100, 0.2)" stroke="#d4a574" stroke-width="1.5"></rect> 
-
-                <!-- Holes (1-7) --> 
-                <circle id="hole-1" cx="170" cy="45" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="48.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">1</text>
-                
-                <circle id="hole-2" cx="170" cy="75" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="78.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">2</text>
-                
-                <circle id="hole-3" cx="170" cy="105" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="108.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">3</text>
-                
-                <!-- Right Hand Visual Guideline (Holes 4-7) -->
-                <text x="295" y="112" font-size="8.5" fill="#57d9ff" text-anchor="middle" class="font-mono font-bold select-none">右手 R</text>
-                <path d="M 205,125 L 315,125 L 315,235 L 205,235" fill="none" stroke="rgba(87,217,255,0.3)" stroke-width="1.2" stroke-dasharray="2 2" />
-
-                <!-- RIGHT HAND ICON (Moved further right, Thumb pointing left to the recorder) -->
-                <g id="right-hand-icon" transform="translate(235, 140) scale(1, 1)" class="text-[#57d9ff] stroke-current fill-none" opacity="0.85">
-                  <path d="M 12,36 C 12,30 6,26 5,21 C 4.2,17.5 7.5,16.5 9,19 C 10.5,21.5 12,24 12,21 C 12,14 13.5,9 15.5,9 C 17.5,9 18,14 18,21 C 18,13 19.5,8 21.5,8 C 23.5,8 24,13 24,21 C 24,14 25.5,9 27.5,9 C 29.5,9 30,14 30,22 C 30,16 31.5,12 33.5,12 C 35.5,12 36,16 36,26 C 36,32 32,36 26,36 Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </g>
-
-                <circle id="hole-4" cx="170" cy="135" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="138.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">4</text>
-                
-                <circle id="hole-5" cx="170" cy="165" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="168.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">5</text>
-                
-                <circle id="hole-6" cx="170" cy="195" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="198.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">6</text>
-                
-                <circle id="hole-7" cx="170" cy="225" r="8" fill="rgba(255,255,255,0.08)" stroke="#9fb8b2" stroke-width="1.5" class="transition-all duration-200"></circle> 
-                <text x="170" y="228.5" font-size="9.5" fill="#7e9791" text-anchor="middle" class="font-mono font-bold select-none">7</text>
+            <!-- 環形進度指示器 -->
+            <div class="relative h-12 w-12 shrink-0">
+              <svg viewBox="0 0 90 90" class="h-full w-full -rotate-90" aria-hidden="true">
+                <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"></circle> 
+                <circle id="progress-ring" class="progress-ring" cx="45" cy="45" r="40" fill="none" stroke="#64f3b8" stroke-linecap="round" stroke-width="8"></circle>
               </svg>
+              <span id="hold-percent" class="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold text-[#d9fff1]">0%</span>
             </div>
           </div>
           
-          <div class="mt-6 border-t border-white/10 pt-4">
-            <p id="fingering-note" class="text-center text-sm font-semibold text-[#64f3b8]" aria-live="polite">選擇音符或吹奏以查看指法</p>
-          </div>
-        </section>
-
-        <!-- PRACTICE PANEL -->
-        <section data-template-id="practice-panel" class="canva-panel glass-panel rounded-[1.6rem] p-5 flex flex-col justify-between h-full">
-          <div>
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p data-template-id="practice-label" class="canva-text eyebrow text-[#ffc85d]">PRACTICE CHALLENGE</p>
-                <h2 data-template-id="practice-heading" class="canva-text mt-2 text-lg font-bold text-white">吹奏穩定度挑戰</h2>
-              </div>
-              <div class="relative h-14 w-14 shrink-0">
-                <svg viewBox="0 0 90 90" class="h-full w-full -rotate-90" aria-hidden="true">
-                  <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="8"></circle> 
-                  <circle id="progress-ring" class="progress-ring" cx="45" cy="45" r="40" fill="none" stroke="#64f3b8" stroke-linecap="round" stroke-width="8"></circle>
-                </svg>
-                <span id="hold-percent" class="absolute inset-0 flex items-center justify-center font-mono text-xs font-bold text-[#d9fff1]">0%</span>
-              </div>
-            </div>
-            
-            <p data-template-id="practice-description" class="canva-text mt-3 text-xs leading-relaxed text-[#9fb6b1]">
-              選擇下方任一個直笛常用音，試著穩定吹出該音符並維持在準確音高內 1 秒鐘。
-            </p>
-            
-            <div class="mt-5 grid grid-cols-3 gap-2" role="group" aria-label="Select a practice note">
-              <button type="button" class="note-chip is-selected rounded-lg px-2 py-2 text-xs font-bold" data-note="C5">C5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="D5">D5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="E5">E5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="F5">F5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="G5">G5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="A5">A5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="B5">B5</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="C6">C6</button> 
-              <button type="button" class="note-chip rounded-lg px-2 py-2 text-xs font-bold" data-note="D6">D6</button>
-            </div>
-          </div>
+          <p class="canva-text mt-3 text-[11px] sm:text-xs leading-relaxed text-[#9fb6b1]">
+            選擇下方任一個直笛常用音，試著穩定吹出該音符並維持在準確音高內 1 秒鐘。
+          </p>
           
-          <div class="mt-5 rounded-xl border border-white/10 bg-[#041619]/65 p-4">
-            <p data-template-id="target-label" class="canva-text text-[10px] font-semibold uppercase tracking-widest text-[#7e9791]">挑戰目標音符</p>
-            <p id="target-note" class="metric-value mt-1 text-3xl font-bold text-[#64f3b8]">C5</p>
-            <p id="practice-status" class="mt-2 text-xs font-medium text-[#a5bbb6]" aria-live="polite">選擇音符後，穩定吹奏 1 秒。</p>
+          <!-- 音符快速切換區 - 鍵位加大且高視覺對抗，極易於操作 -->
+          <div class="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Select a practice note">
+            <button type="button" class="note-chip is-selected rounded-lg text-xs font-bold" data-note="C5">C5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="D5">D5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="E5">E5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="F5">F5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="G5">G5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="A5">A5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="B5">B5</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="C6">C6</button> 
+            <button type="button" class="note-chip rounded-lg text-xs font-bold" data-note="D6">D6</button>
           </div>
-        </section>
+        </div>
+        
+        <!-- 當前挑戰目標 -->
+        <div class="mt-4 rounded-xl border border-white/5 bg-[#031315]/75 p-4 flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="canva-text text-[10px] font-bold uppercase tracking-wider text-[#7e9791]">挑戰目標音符</p>
+              <p id="target-note" class="metric-value mt-0.5 text-3xl font-extrabold text-[#64f3b8]">C5</p>
+            </div>
+            <!-- 播放參考音按鈕：點選音符或點擊此處皆能播放直笛音 -->
+            <button id="play-ref-btn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-[#d9fff1] hover:text-white rounded-lg text-xs font-bold border border-white/10 transition">
+              <i data-lucide="volume-2" class="h-4 w-4"></i>
+              播放參考音
+            </button>
+          </div>
+          <p id="practice-status" class="text-xs font-medium text-[#a5bbb6] border-t border-white/5 pt-2" aria-live="polite">
+            選擇音符後，穩定吹奏 1 秒。
+          </p>
+        </div>
+      </section>
 
-      </div>
     </section>
-
-    <!-- FOOTER AREA -->
-    <footer class="pt-10 pb-5 text-center">
-     <p data-template-id="footer-note" class="canva-text text-xs text-[#78918b]">
-       © 2026 音高偵查員 Recorder Pitch Scout. 專業音樂教育工具。
-     </p>
-    </footer>
    </main>
+
+   <!-- 頁尾宣告區 -->
+   <footer class="py-6 text-center border-t border-white/5 bg-[#030d0f]/50 w-full mt-6">
+    <p class="canva-text text-[10px] sm:text-xs text-[#78918b]">
+      © 2026 音高偵查員 Recorder Pitch Scout. 專業音樂教育工具。
+    </p>
+   </footer>
   </div>
   
   <script src="/_sdk/719055fef2a85d14.editing_sdk.js" integrity="sha512-kFqrdGgIiTOsu307feB5Cy3JVP9IayftsmCIZ0csxYBGuBmJQPhyvcnmKR8F0fTW97h5s1gAvz3SumI8zJ6OxQ=="></script>
@@ -489,6 +525,8 @@
     const practiceStatus = document.getElementById("practice-status");
     const progressRing = document.getElementById("progress-ring");
     const holdPercent = document.getElementById("hold-percent");
+    const playRefBtn = document.getElementById("play-ref-btn");
+    const fingeringSourceBadge = document.getElementById("fingering-source-badge");
 
     let audioContext;
     let analyser;
@@ -497,32 +535,150 @@
     let timeData;
     let active = false;
     let targetNote = "C5";
+    
+    // 即時指法控制系統
+    let lastDetectedTime = 0;
+    let isLiveFingeringActive = false;
+    
+    // 直笛音色合成器儲存器
+    let activeOscillators = [];
+    let clickSynthTimeout = null;
+
     let holdStart = null;
     let completedTarget = false;
     const holdDuration = 1000;
     const noteButtons = [...document.querySelectorAll(".note-chip")];
 
+    // 標準音名序列
     const notes = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
-    // German / Baroque soprano recorder fingerings (1 = covered, 0 = open)
-    // format: thumb (0) + holes 1-7
+    // 常用音與對應標準頻率 (用於播放參考音)
+    const noteFrequencies = {
+      "C5": 523.25,
+      "D5": 587.33,
+      "E5": 659.25,
+      "F5": 698.46,
+      "G5": 783.99,
+      "A5": 880.00,
+      "B5": 987.77,
+      "C6": 1046.50,
+      "D6": 1174.66
+    };
+
+    // 指法配置表：德式 / 巴洛克式混合直笛常用標準指法 (1 = 覆蓋, 0 = 開放)
     const fingeringChart = {
       "C5": { thumb: 1, holes: [1, 1, 1, 1, 1, 1, 1], display: "全蓋 (0 1 2 3 4 5 6 7)" },
       "D5": { thumb: 1, holes: [1, 1, 1, 1, 1, 1, 0], display: "開七孔 (0 1 2 3 4 5 6)" },
-      "E5": { thumb: 1, holes: [1, 1, 1, 1, 1, 0, 0], display: "開六七孔 (0 1 2 3 4 5)" },
+      "E5": { thumb: 1, holes: [1, 1, 1, 1, 1, 0, 0], display: "開六、七孔 (0 1 2 3 4 5)" },
       "F5": { thumb: 1, holes: [1, 1, 1, 1, 0, 1, 1], display: "叉音指法 (0 1 2 3 5 6 7)" },
-      "G5": { thumb: 1, holes: [1, 1, 1, 0, 0, 0, 0], display: "開四五六七孔 (0 1 2 3)" },
+      "G5": { thumb: 1, holes: [1, 1, 1, 0, 0, 0, 0], display: "開四、五、六、七孔 (0 1 2 3)" },
       "A5": { thumb: 1, holes: [1, 1, 0, 0, 0, 0, 0], display: "中音 A (0 1 2)" },
       "B5": { thumb: 1, holes: [1, 0, 0, 0, 0, 0, 0], display: "中音 B (0 1)" },
       "C6": { thumb: 1, holes: [0, 1, 0, 0, 0, 0, 0], display: "高音 C (0 2)" },
       "D6": { thumb: 0, holes: [0, 1, 0, 0, 0, 0, 0], display: "高音 D (僅按第 2 孔)" }
     };
 
+    // 停止目前正在播放的所有合成器音符
+    function stopAllSynthesizers() {
+      activeOscillators.forEach(osc => {
+        try {
+          osc.stop();
+          osc.disconnect();
+        } catch (e) {}
+      });
+      activeOscillators = [];
+      if (clickSynthTimeout) {
+        clearTimeout(clickSynthTimeout);
+        clickSynthTimeout = null;
+      }
+    }
+
+    // 播放直笛吹奏的模擬聲音 (Web Audio API)
+    function playRecorderSound(frequency, customDuration = 0.8) {
+      if (!frequency) return;
+      
+      // 先行切斷正在鳴響的聲音
+      stopAllSynthesizers();
+
+      try {
+        // 確保 AudioContext 被喚醒
+        const ctx = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        // 建立直笛特有的 woody 諧波 (主要是基音 + 弱化二次諧波)
+        const osc1 = ctx.createOscillator(); // 基音
+        const osc2 = ctx.createOscillator(); // 二次諧波
+        const vibrato = ctx.createOscillator(); // 氣流顫音效果
+        const vibratoGain = ctx.createGain();
+        const mainGain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        // 設置頻率與波形
+        osc1.type = 'triangle'; // 三角波非常像木製吹管
+        osc1.frequency.setValueAtTime(frequency, ctx.currentTime);
+
+        osc2.type = 'sine'; // 正弦波用來圓滑化音色
+        osc2.frequency.setValueAtTime(frequency * 2, ctx.currentTime);
+
+        // 分配諧波權重 (直笛特色：基音很強，泛音非常柔和)
+        const gain1 = ctx.createGain();
+        const gain2 = ctx.createGain();
+        gain1.gain.setValueAtTime(0.16, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.04, ctx.currentTime);
+
+        osc1.connect(gain1);
+        gain1.connect(mainGain);
+        osc2.connect(gain2);
+        gain2.connect(mainGain);
+
+        // 模擬人類吹奏時的細微顫音 (Breath Jitter)
+        vibrato.frequency.setValueAtTime(5.8, ctx.currentTime); // 5.8Hz 的自然呼吸震顫
+        vibratoGain.gain.setValueAtTime(frequency * 0.0035, ctx.currentTime); // 微小 pitch 波動
+        vibrato.connect(vibratoGain);
+        vibratoGain.connect(osc1.frequency);
+        vibratoGain.connect(osc2.frequency);
+
+        // 模擬直笛吹奏的氣息起伏 Envelope (軟起音 tuu-uuu-uu)
+        const now = ctx.currentTime;
+        mainGain.gain.setValueAtTime(0, now);
+        mainGain.gain.linearRampToValueAtTime(0.18, now + 0.08); // 輕柔起音
+        mainGain.gain.setValueAtTime(0.18, now + customDuration - 0.15);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, now + customDuration); // 自然漸弱
+
+        // 低通濾波器：減少高頻數位刺耳聲
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(frequency * 2.8, ctx.currentTime);
+
+        mainGain.connect(filter);
+        filter.connect(ctx.destination);
+
+        // 開始播放
+        osc1.start(now);
+        osc2.start(now);
+        vibrato.start(now);
+
+        // 註冊停止排程
+        osc1.stop(now + customDuration);
+        osc2.stop(now + customDuration);
+        vibrato.stop(now + customDuration);
+
+        // 保留參考以便打斷
+        activeOscillators = [osc1, osc2, vibrato];
+
+      } catch (err) {
+        console.warn("瀏覽器尚未準備好播放音訊: ", err);
+      }
+    }
+
+    // 修改偵測點外觀狀態
     function setMicStatus(text, live) {
       micStatus.textContent = text;
       statusDot.classList.toggle("is-live", live);
     }
 
+    // 重設畫布寬度與DPR
     function resizeCanvas() {
       const ratio = window.devicePixelRatio || 1;
       const rect = waveform.getBoundingClientRect();
@@ -536,17 +692,19 @@
       const height = waveform.clientHeight;
       waveContext.clearRect(0, 0, width, height);
 
-      waveContext.strokeStyle = "rgba(100,243,184,0.18)";
+      // 繪製中心基準水平線
+      waveContext.strokeStyle = "rgba(100,243,184,0.12)";
       waveContext.lineWidth = 1;
       waveContext.beginPath();
       waveContext.moveTo(0, height / 2);
       waveContext.lineTo(width, height / 2);
       waveContext.stroke();
 
+      // 繪製動態聲波軌跡
       waveContext.strokeStyle = "#64f3b8";
-      waveContext.lineWidth = 2;
-      waveContext.shadowColor = "rgba(100,243,184,0.8)";
-      waveContext.shadowBlur = 12;
+      waveContext.lineWidth = 2.5;
+      waveContext.shadowColor = "rgba(100,243,184,0.6)";
+      waveContext.shadowBlur = 8;
       waveContext.beginPath();
 
       const slice = width / data.length;
@@ -567,7 +725,7 @@
 
       for (let i = 0; i < size; i++) rms += buffer[i] * buffer[i];
       rms = Math.sqrt(rms / size);
-      if (rms < 0.012) return -1;
+      if (rms < 0.012) return -1; // 噪音過濾閾值
 
       let start = 0;
       let end = size - 1;
@@ -612,6 +770,7 @@
       return sampleRate / period;
     }
 
+    // 頻率轉換成音高、音分誤差
     function frequencyToPitch(frequency) {
       const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
       const idealFrequency = 440 * Math.pow(2, (midi - 69) / 12);
@@ -629,7 +788,8 @@
 
     function updateTuner(pitch) {
       const clampedCents = Math.max(-50, Math.min(50, pitch.cents));
-      const angle = clampedCents * 1.08;
+      // 將音分對應至 -55deg 到 55deg 的指針旋轉角度
+      const angle = clampedCents * 1.1;
       needle.style.transform = `rotate(${angle}deg)`;
 
       noteReadout.textContent = pitch.note;
@@ -642,24 +802,28 @@
         tuneState.textContent = "IN TUNE";
         tuneState.style.color = "#64f3b8";
         tuneState.style.borderColor = "rgba(100,243,184,0.42)";
-        tuningMessage.textContent = "音準穩定，保持這個氣息。";
+        tuningMessage.textContent = "音準非常完美，保持這個氣息！";
       } else if (pitch.cents < 0) {
         needle.style.background = "linear-gradient(to top, #ffe2db, #ff6d72)";
         tuneState.textContent = "FLAT";
         tuneState.style.color = "#ff9b9d";
         tuneState.style.borderColor = "rgba(255,109,114,0.42)";
-        tuningMessage.textContent = "音高稍低，試著提升氣流。";
+        tuningMessage.textContent = "音高稍偏低，試著提升一點吹奏氣流。";
       } else {
         needle.style.background = "linear-gradient(to top, #fff0c9, #ffc85d)";
         tuneState.textContent = "SHARP";
         tuneState.style.color = "#ffd57d";
         tuneState.style.borderColor = "rgba(255,200,93,0.42)";
-        tuningMessage.textContent = "音高稍高，放鬆氣流試試。";
+        tuningMessage.textContent = "音高稍偏高，稍微放鬆或減弱氣流。";
       }
 
-      updateFingering(pitch.note);
+      // 如果有指法定義，即時呈現在直笛圖上 (傳入 true 代表是吹奏即時偵測)
+      if (fingeringChart[pitch.note]) {
+        updateFingering(pitch.note, true);
+      }
     }
 
+    // 調音表重置
     function resetTuner() {
       noteReadout.textContent = "—";
       frequencyReadout.textContent = "0.0 Hz";
@@ -670,33 +834,35 @@
       tuneState.style.color = "#b7cbc6";
       tuneState.style.borderColor = "rgba(255,255,255,0.1)";
       tuningMessage.textContent = "等待聲音輸入";
-      updateFingering(null);
     }
 
-    function updateFingering(note) {
+    // 重新設計的 updateFingering：支援 live 偵測切換與狀態提示
+    function updateFingering(note, isLive = false) {
       const fingering = note ? fingeringChart[note] : null;
-      const fingeringNote = document.getElementById("fingering-note");
 
       if (!fingering) {
-        fingeringNote.textContent = "選擇音符或吹奏以查看指法";
-        // Reset all holes to neutral
-        for (let i = 0; i <= 7; i++) {
-          const hole = document.getElementById(`hole-${i}`);
-          if (hole) {
-            hole.style.fill = "rgba(255,255,255,0.08)";
-            hole.style.stroke = "#9fb8b2";
-          }
-        }
+        // 沒有指法時維持原貌
         return;
       }
 
-      fingeringNote.textContent = fingering.display;
+      // 更新指法來源標籤 (即時吹奏/練習目標)
+      if (isLive) {
+        lastDetectedTime = performance.now();
+        isLiveFingeringActive = true;
+        fingeringSourceBadge.textContent = `🔴 即時偵測中: ${note}`;
+        fingeringSourceBadge.className = "rounded-full bg-[#64f3b8]/10 border border-[#64f3b8]/30 text-[10px] font-bold px-2 py-0.5 text-[#64f3b8] tracking-wide animate-pulse";
+      } else {
+        fingeringSourceBadge.textContent = `🎯 練習目標: ${note}`;
+        fingeringSourceBadge.className = "rounded-full bg-white/5 border border-white/10 text-[10px] font-bold px-2 py-0.5 text-[#8ea6a1] tracking-wide";
+      }
+
+      document.getElementById("fingering-note").textContent = fingering.display;
       
-      // Update Thumb (Hole 0)
+      // 更新拇指 0 孔
       const hole0 = document.getElementById("hole-0");
       if (hole0) {
         if (fingering.thumb === 1) {
-          hole0.style.fill = "rgba(100,243,184,0.45)";
+          hole0.style.fill = "rgba(100,243,184,0.5)";
           hole0.style.stroke = "#64f3b8";
         } else {
           hole0.style.fill = "rgba(255,255,255,0.08)";
@@ -704,13 +870,13 @@
         }
       }
       
-      // Update holes 1-7
+      // 更新指法孔 1 - 7
       for (let i = 0; i < 7; i++) {
         const holeNum = i + 1;
         const hole = document.getElementById(`hole-${holeNum}`);
         if (hole) {
           if (fingering.holes[i] === 1) {
-            hole.style.fill = "rgba(100,243,184,0.45)";
+            hole.style.fill = "rgba(100,243,184,0.5)";
             hole.style.stroke = "#64f3b8";
           } else {
             hole.style.fill = "rgba(255,255,255,0.08)";
@@ -730,6 +896,7 @@
     }
 
     function updatePractice(pitch) {
+      // 挑戰判定寬限值為 ±15 音分
       const isMatch = pitch.note === targetNote && Math.abs(pitch.cents) <= 15;
 
       if (!isMatch || completedTarget) {
@@ -752,11 +919,39 @@
 
       if (progress >= 1) {
         completedTarget = true;
-        practiceStatus.textContent = `完成！你穩定吹準了 ${targetNote}。`;
+        practiceStatus.textContent = `完成挑戰！你已經吹準了 ${targetNote}！`;
         practiceStatus.style.color = "#64f3b8";
       } else {
-        practiceStatus.textContent = `很好，繼續保持 ${targetNote}…`;
+        practiceStatus.textContent = `非常好，繼續保持 ${targetNote} 音準中…`;
         practiceStatus.style.color = "#d8fff0";
+      }
+    }
+
+    // 播放練習目標參考音
+    function playReferenceTone() {
+      const frequency = noteFrequencies[targetNote];
+      if (!frequency) return;
+
+      // 切換播放狀態
+      if (activeOscillators.length > 0) {
+        stopAllSynthesizers();
+        playRefBtn.innerHTML = `<i data-lucide="volume-2" class="h-4 w-4"></i> 播放參考音`;
+        playRefBtn.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-[#d9fff1] hover:text-white rounded-lg text-xs font-bold border border-white/10 transition";
+        lucide.createIcons();
+      } else {
+        playRecorderSound(frequency, 1.8); // 播放 1.8 秒
+        playRefBtn.innerHTML = `<i data-lucide="square" class="h-4 w-4"></i> 停止播放`;
+        playRefBtn.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#ff6d72]/15 hover:bg-[#ff6d72]/25 text-[#ff6d72] rounded-lg text-xs font-bold border border-[#ff6d72]/40 transition";
+        lucide.createIcons();
+        
+        // 播放時間結束自動切換回來
+        setTimeout(() => {
+          if (activeOscillators.length === 0) {
+            playRefBtn.innerHTML = `<i data-lucide="volume-2" class="h-4 w-4"></i> 播放參考音`;
+            playRefBtn.className = "inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-[#d9fff1] hover:text-white rounded-lg text-xs font-bold border border-white/10 transition";
+            lucide.createIcons();
+          }
+        }, 1800);
       }
     }
 
@@ -777,6 +972,12 @@
           holdStart = null;
           progressRing.style.strokeDashoffset = "251.2";
           holdPercent.textContent = "0%";
+        }
+        
+        // 智慧延遲切換：如果停止吹奏超過 1.2 秒，指法自動還原成目前的「練習目標音符」指法
+        if (isLiveFingeringActive && (performance.now() - lastDetectedTime > 1200)) {
+          isLiveFingeringActive = false;
+          updateFingering(targetNote, false);
         }
       }
 
@@ -853,11 +1054,17 @@
       resetTuner();
       resetPracticeProgress();
       drawWaveform(new Float32Array(128));
+      
+      // 重置指法至選定目標
+      isLiveFingeringActive = false;
+      updateFingering(targetNote, false);
     }
 
     startButton.addEventListener("click", startListening);
     stopButton.addEventListener("click", stopListening);
+    playRefBtn.addEventListener("click", playReferenceTone);
 
+    // 點選音高按鈕時
     noteButtons.forEach(button => {
       button.addEventListener("click", () => {
         targetNote = button.dataset.note;
@@ -865,7 +1072,16 @@
         noteButtons.forEach(item => item.classList.toggle("is-selected", item === button));
         resetPracticeProgress();
         practiceStatus.textContent = `目標是 ${targetNote}，穩定吹奏並保持音準。`;
-        updateFingering(targetNote);
+        
+        // 1. 同步呈現該音高的正確指法
+        isLiveFingeringActive = false;
+        updateFingering(targetNote, false);
+
+        // 2. 自動發出該直笛音高的擬真聲音
+        const frequency = noteFrequencies[targetNote];
+        if (frequency) {
+          playRecorderSound(frequency, 0.85); // 點擊時播放0.85秒的直笛純音
+        }
       });
     });
 
@@ -878,8 +1094,7 @@
       lucide.createIcons();
       resizeCanvas();
       drawWaveform(new Float32Array(128));
-      // Render initial selected state
-      updateFingering(targetNote);
+      updateFingering(targetNote, false);
     });
   </script>
  </body>
